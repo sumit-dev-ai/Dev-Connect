@@ -15,32 +15,115 @@ export const createPostController = asyncHandler(async (req, res) => {
 
   const trimmedContent = content?.trim();
 
-  const localFilePath = req.file?.path;
-
-  if (!trimmedContent && !localFilePath) {
-    throw new ApiError(400, "The post can't be empty");
-  }
-
+  const localFiles = req.files;
   let images = [];
 
-  if (localFilePath) {
-    const uploadedImage = await uploadOnCloudinary(localFilePath);
 
-    if (!uploadedImage?.secure_url) {
-      throw new ApiError(500, "Image upload failed");
+  if (!trimmedContent && (!localFiles || localFiles.length === 0)) {
+    throw new ApiError(400, "The post can't be empty");
+  }
+  //visibility check because we only have two options in enum schema public and private
+  const allowedVisibility = ["public", "private"];
+
+  if (visibility && !allowedVisibility.includes(visibility)) {
+    throw new ApiError(400, "Invalid visibility value");
+  }
+
+  //image upload
+
+  if (localFiles && localFiles.length > 0) {    // check for all files 
+    for (const file of localFiles) {
+      const uploadedImage = await uploadOnCloudinary(file.path);
+
+      if (!uploadedImage?.secure_url) { //if url isn't generated
+        throw new ApiError(500, "Image upload failed");
+      }
+
+      images.push(uploadedImage.secure_url);  //url generated so we appended files
     }
-
-    images.push(uploadedImage.secure_url);
   }
 
   const post = await Post.create({
     author: userId,
     content: trimmedContent || "",
     images,
-    visibility: visibility || "public",
+    visibility: visibility,
   });
 
   return res
     .status(201)
     .json(new ApiResponse(201, { post }, "Post created successfully"));
 });
+
+export const getFeedPosts = asyncHandler(async (req, res) => {
+  // page config
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Number(req.query.limit) || 10, 50);
+  const skip = (page - 1) * limit;
+
+  //for infinite scrolling
+  const totalPosts = await Post.countDocuments();
+  const hasMore = page * limit < totalPosts;
+
+  const posts = await Post.aggregate([
+
+
+    {
+      $sort: {
+        createdAt: -1,
+      }
+    },
+    {
+      $skip: skip
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "author",
+        foreignField: "_id",
+        as: "authorDetails"
+      }
+    },
+    {
+      $unwind: "$authorDetails"
+    },
+    {
+      $project: {
+        content: 1,
+        images: 1,
+        createdAt: 1,
+
+        likesCount: {
+          $size: {
+            $ifNull: ["$likes", []]
+          }
+        },
+        CommentCount: {
+          $size: {
+            $ifNull: ["$comments", []]
+          }
+        },
+
+        "authorDetails._id": 1,
+        "authorDetails.userName": 1,
+        "authorDetails.fullName": 1,
+        "authorDetails.profilePicture": 1
+
+
+      }
+    }
+  ])
+  return res.status(200)
+    .json(new ApiResponse(
+      200,
+      {
+        posts, page, limit, totalPosts,
+        hasMore,   //need has more for infine scrolling
+        totalPages: Math.ceil(totalPosts / limit) //need total pages for pagination
+      },
+      "posts fetched Succesfully"
+    ))
+})

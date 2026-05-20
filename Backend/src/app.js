@@ -14,10 +14,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 
-//using router
+//user router
 import userRouter from "./routes/user.route.js"
 app.use("/api/v1/users",userRouter);
 
+//post router
+import postRouter from "./routes/post.route.js"
+app.use("/api/v1/posts",postRouter)
 
 //must be last
 app.use((err, req, res, next) => {

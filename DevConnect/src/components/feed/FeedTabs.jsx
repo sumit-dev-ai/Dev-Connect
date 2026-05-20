@@ -25,6 +25,8 @@ export const FeedTabs = () => {
 
                 ))}
             </div>
+
+
         </div>
     )
 }

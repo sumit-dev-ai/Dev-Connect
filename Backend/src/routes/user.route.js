@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { registerUser, loginUser, logOutUser, refreshAccessToken , editUserDetails, getProfiles, followController, unFollowController } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { createPostController } from "../controllers/post.controller.js";
-
+import { upload } from "../middlewares/multer.middleware.js";
 const router = Router();
 
 router.get("/", (req, res) => {
@@ -19,12 +18,7 @@ router.route("/editprofile").patch(verifyJWT , editUserDetails);
 router.route("/getprofiles").get(verifyJWT , getProfiles);
 router.route("/:_id/follow").post(verifyJWT , followController);
 router.route("/:_id/unfollow").delete(verifyJWT , unFollowController);
-router.post(
-  "/create-post",
-  verifyJWT,
-  upload.single("image"),
-  createPostController
-);
+
 
 router.route("/logout").post(verifyJWT, logOutUser);
 router.route("/refresh-token").post(refreshAccessToken);
