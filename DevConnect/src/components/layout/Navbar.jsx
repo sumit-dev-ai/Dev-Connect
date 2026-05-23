@@ -17,7 +17,7 @@ export const Navbar = () => {
         <div className='flex md:items-center justify-start'>
           <img src={logo} className=' h-16 w-16 md:h-24 md:w-24 md:hidden' alt="" />
           
-          <SidebarTrigger className={'hidden md:block'}/>
+          <SidebarTrigger className={'hidden  md:hidden lg:block'}/>
           
         </div>
 

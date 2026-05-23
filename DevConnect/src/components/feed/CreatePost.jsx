@@ -81,6 +81,7 @@ export const CreatePost = () => {
                             multiple
                             accept='image/*'
                             onChange={ handleImageChange }
+                            
                         />
                     </div>
                 )

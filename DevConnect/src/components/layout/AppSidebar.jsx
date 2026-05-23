@@ -27,9 +27,11 @@ import useAuthContext from "@/context/authContext"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { logoutUser } from "@/services/AuthServices"
 import toast from "react-hot-toast"
+import { useState } from "react"
 
 export function AppSidebar() {
   const { user , setUser } = useAuthContext();
+   const [open, setOpen] = useState(false)
   const navigate = useNavigate();
 
   //handle logout

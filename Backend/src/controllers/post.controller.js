@@ -3,6 +3,7 @@ import ApiError from "../utils/ApiErrors.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import Post from "../models/post.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
 
 export const createPostController = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
@@ -60,6 +61,11 @@ export const getFeedPosts = asyncHandler(async (req, res) => {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Number(req.query.limit) || 10, 50);
   const skip = (page - 1) * limit;
+  
+  const userId = req.user?._id;   // need it for isLiked
+  if (!userId) {
+    throw new ApiError(401 , "Unauthorized request")
+  }
 
   //for infinite scrolling
   const totalPosts = await Post.countDocuments();
@@ -106,6 +112,9 @@ export const getFeedPosts = asyncHandler(async (req, res) => {
             $ifNull: ["$comments", []]
           }
         },
+        isLiked: {
+          $in: [userId, "$likes"]
+        },
 
         "authorDetails._id": 1,
         "authorDetails.userName": 1,
@@ -126,4 +135,80 @@ export const getFeedPosts = asyncHandler(async (req, res) => {
       },
       "posts fetched Succesfully"
     ))
+})
+
+export const likePostController = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const postId = req.params?.postId
+
+  if (!userId) {
+    throw new ApiError(401, "unauthorized request")
+  }
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    throw new ApiError(400, "Invalid post id")
+  }
+
+  const post = await Post.findByIdAndUpdate(
+    postId,
+    {
+      $addToSet: {
+        likes: userId
+      }
+    },
+    {
+
+      new: true,
+    }
+  )
+  if (!post) {
+    throw new ApiError(404, "post not found")
+  }
+
+  return res.status(200)
+    .json(new ApiResponse(200, {
+      postId: post._id,
+      likesCount: post.likes.length,
+      isLiked: true
+    },
+      "post liked succesfully"
+
+    ))
+
+})
+export const unlikePostController = asyncHandler(async (req, res) => {
+  const userId = req.user?._id
+  const postId = req.params?.postId
+
+  if (!userId) {
+    throw new ApiError(401, "unauthorized request")
+  }
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    throw new ApiError(400, "Invalid post id")
+  }
+
+  const post = await Post.findByIdAndUpdate(
+    postId, {
+    $pull: {
+      likes: userId
+    }
+  }
+    ,
+    {
+      new: true
+    }
+  )
+
+  if (!post) {
+    throw new ApiError(404, "Post not found")
+  }
+
+  return res.status(200).json(new ApiResponse(200, {
+    postId: post._id,
+    likesCount: post.likes.length,
+    isLiked: false
+  },
+    "Post unliked successfully"
+
+  ))
+
 })
